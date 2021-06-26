@@ -1,5 +1,5 @@
 # kaboom.nut
-kaboom.nut based on kaboom.js. Its a vc-mp library that helps you make 2d gam
+kaboom.nut based on kaboom.js. Its a vc-mp library that helps you to create any 2d game on your server.
 
 # What do you need?
   - decUI.nut
