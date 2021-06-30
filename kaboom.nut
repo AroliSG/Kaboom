@@ -40,21 +40,34 @@ class kaboom extends Component  {
         this.addKey ();
     }
 
-    start = function (segment) {
-        if (this.scenebox.rawin (segment)) {
-            this.scenebox.rawget (segment).open.acall ([{context = this, parent = this.canvas }]);
-            this.canvas.show ();
-        }
-    }
+
 
     scene = function (segment, callback) {
         this.scenebox.rawset (segment, { open = callback })
     }
-
-    go = function (segment) {
-        Console.Print (this.scenebox.rawin (segment))
+    
+    start = function (segment) {
+        local context = this;
         if (this.scenebox.rawin (segment)) {
-            this.scenebox.rawget (segment).acall ([{context = this}]);
+            this.scenebox.rawget (segment).open.acall ([this]);
+
+            this.canvas.show ();
+        }
+    }
+
+    go = function (segment, kk) {
+        this.canvas.destroy ();
+        this.canvas = null;
+        
+        this.canvas = UI.Canvas({
+            id = this.id         
+            Size = this.Size
+            Colour = Colour (0,0,0)    
+            align = "center"   
+        })
+
+        if (this.scenebox.rawin (segment)) {
+            this.scenebox.rawget (segment).open.acall ([{context = this}]);
         }
     }
 
@@ -64,9 +77,8 @@ class kaboom extends Component  {
         foreach (map_design in map) {
             this.frames.push ([]);
             height++;
-            
 
-            this.SpriteSize = VectorScreen (this.Size.X/map_design.len()+1, this.Size.Y/map.len ());
+            this.SpriteSize = VectorScreen (this.Size.X / map_design.len() + 1, this.Size.Y / map.len ());
             foreach (map_constr in map_design) {
                 empty += this.SpriteSize.X;
                 if (map_design.len () == index) {
@@ -122,28 +134,46 @@ class kaboom extends Component  {
 
     //new entities    
     addEntity = function (obj) {
-        local solidity = false, callback = null, alias = null, player = false;
+        local solidity = false, origin = null, gravity = false, callback = null, alias = null, player = false, rotate = false, pos = false, height = 0, width = 0;
+        foreach (data in obj) {
+            if (typeof data == "table") {
+                if (data.rawin ("height")) height += data.height;
+                if (data.rawin ("width")) width += data.width;
+                if (data.rawin ("Solid")) solidity = data.Solid;
+                if (data.rawin ("Gravity")) gravity = data.Gravity;
+                if (data.rawin ("collision")) callback = data.collision;
+                if (data.rawin ("alias")) alias = data.alias
+                if (data.rawin ("Pos")) pos = data.Pos;
+                if (data.rawin ("player")) player = data.player;
+                if (data.rawin ("origin")) origin = data.origin;
+                if (data.rawin ("rotate")) rotate = data.rotate;
+                break;
+            }
+        }
+        
         local entity = ::UI.Sprite({
             id =  obj [0]
             file = this.loadRoot + obj [0] + ".png"     
             Size = this.SpriteSize  
+            align = origin
         }); 
 
-        foreach (data in obj) {
-            if (typeof data == "table") {
-                if (data.rawin ("height")) entity.Size.Y += data.height;
-                if (data.rawin ("width")) entity.Size.X += data.width;
-                if (data.rawin ("Solid")) solidity = data.Solid;
-                if (data.rawin ("collision")) callback = data.collision;
-                if (data.rawin ("alias")) alias = data.alias
-                if (data.rawin ("Pos")) entity.Position = data.Pos;
-                if (data.rawin ("player")) player = data.player;
-                break;
-            }
+        if (rotate) {
+            entity.RotationCentre = VectorScreen (0,0);
+            entity.Rotation = rotate;
         }
+
+        if (pos) {
+            entity.Position = pos;
+        }
+
+        entity.Size.Y += height
+        entity.Size.X += width
+        
         this.entities.rawset (entity, {
             IsGrounded = false
             Solid = solidity
+            Gravity = gravity
             Callback = callback
             alias = alias
             move2d = null
@@ -180,7 +210,7 @@ class kaboom extends Component  {
                     if (this.name.slice (0,3) == "372") b = "left";
 
                     foreach (e,obj in context.entities) {
-                        if (obj && obj.rawin ("onKey")) {
+                        if (obj && obj.rawin ("player") && obj.player) {
                             context.entities.rawget (e).onKey.Heading = b;
                             context.entities.rawget (e).onKey.Event = "up";
                         }
@@ -193,7 +223,7 @@ class kaboom extends Component  {
                     if (this.name.slice (0,3) == "372") b = "left";
 
                     foreach (e,obj in context.entities) {
-                        if (obj && obj.rawin ("onKey")) {
+                        if (obj && obj.rawin ("player") && obj.player) {
                             context.entities.rawget (e).onKey.Heading = b;
                             context.entities.rawget (e).onKey.Event = "down";
                         }
@@ -204,16 +234,14 @@ class kaboom extends Component  {
     } 
 
     objBody = function (p) {
+        local hit;
         if (this.entities.rawin (p)) {
             if (this.entities.rawget (p).EnhanTimer ==null){
                 this.entities.rawget (p).EnhanTimer = Timer.Create (::UI, function  (p, context) {
-                    if (!context.entities.rawget (p).IsGrounded) p.Pos.Y += 3;
+                    if (!context.entities.rawget (p).IsGrounded) p.Pos.Y += 3; 
                     foreach (e, Items in context.entities) {
                         if (context.entities.rawget (p).alias != Items.alias) {
-                            local person = { x = p.Pos.X, y = p.Pos.Y, width = p.Size.X, height = p.Size.Y };
-                            local obj = { x = e.Pos.X, y = e.Pos.Y, width = e.Size.X, height= e.Size.Y };
-                            local distance = context.getDistance (person.x, person.y, obj.x, obj.y) < 60;
-                            
+                            local distance = context.getDistance (p.Pos.X, p.Pos.Y, e.Pos.X, e.Pos.Y);
                             local objTemp = {
                                 context = context
                                 changeImageTo = function (fileName) {
@@ -272,99 +300,105 @@ class kaboom extends Component  {
                                     } 
                                 }
                             }
-
-                            // IsMoving Event
+                            local debugaccess = (!e.hidden && !context.entities.rawget (p).IsDetroyed);
+                            
+                            // moving event
                             if (context.entities.rawget (p).IsMoving || !context.entities.rawget (p).player) context.entities.rawget (p).IsGrounded = false;
-
-                            // distance event
-                            if (distance) {
+                            
+                            // distance collision event
+                            if (distance < 60 && debugaccess) {
                                 if (context.entities.rawget (p).collisionEvent.rawin ("bumpBody")) 
                                     context.entities.rawget (p).collisionEvent.rawget ("bumpBody").acall ([e, objTemp]);
+
+                                if (context.entities.rawget (p).collisionEvent.rawin (Items.alias)) 
+                                    context.entities.rawget (p).collisionEvent.rawget (Items.alias).acall ([e]);
                             } 
-                        
-                             // collision Event
-                            if (person.x < obj.x + obj.width && person.x + person.width > obj.x && person.y < obj.y + obj.height && person.y + person.height > obj.y) {
-                                if (obj.y < person.y) { 
-                                    if (!context.entities.rawget (p).player) { 
-                                        if (context.entities.rawget (p).onKey.Heading == "right") {
-                                            context.entities.rawget (p).bumpHeading = "right";
 
-                                            if (context.entities.rawget (p).collisionEvent.rawin ("bumpRight")) context.entities.rawget (p).collisionEvent.rawget ("bumpRight").acall ([e, objTemp]);
-                                            
-                                            // debugging purpose.
-                                            if (context.entities.rawget (e).rawin ("collisionEvent") && context.entities.rawget (e).collisionEvent.rawin ("bumpLeft")) {
-                                                objTemp.Is <- function (args) { if (args == context.entities.rawget (p).alias) return true; }
-                                                objTemp.exists <- function () { if (p) return true; };
+                            local r1 = { x = p.Pos.X, y = p.Pos.Y, w = p.Size.X, h = p.Size.Y }, r2 = { x = e.Pos.X, y = e.Pos.Y, w = e.Size.X, h= e.Size.Y };
+                            if (!(r1.x>r2.x+r2.w || r1.x+r1.w<r2.x || r1.y>r2.y+r2.h || r1.y+r1.h<r2.y) && debugaccess)
+                            {
+                                if (context.entities.rawget (p).onKey.Heading == "space") {
+                                    p.Pos.Y = r2.y + p.Size.Y + 10; 
 
-                                                context.entities.rawget (e).collisionEvent.rawget ("bumpLeft").acall ([p, objTemp]);
-                                            } 
-                                        } 
-                                        else {
-                                            context.entities.rawget (p).bumpHeading = "left";
-                                            if (context.entities.rawget (p).collisionEvent.rawin ("bumpLeft")) context.entities.rawget (p).collisionEvent.rawget ("bumpLeft").acall ([e, objTemp]);
-                           
-                                            // debugging purpose.
-                                            if (context.entities.rawget (e).rawin ("collisionEvent") && context.entities.rawget (e).collisionEvent.rawin ("bumpRight")) {
-                                                objTemp.Is <- function (args) { if (args == context.entities.rawget (p).alias) return true; }
-                                                objTemp.exists <- function () { if (p) return true; };
-
-                                                context.entities.rawget (e).collisionEvent.rawget ("bumpRight").acall ([p, objTemp]);
-                                            }
-                                        } 
-                                    }
-
-                                    // player collision events 
-                                    else {                                      
-                                        if (context.entities.rawget (p).onKey.Heading == "right") {
-                                            context.entities.rawget (p).bumpHeading = "right";
-                                            p.Pos.X = obj.x - obj.width; 
-
-                                            if (context.entities.rawget (p).collisionEvent.rawin ("bumpRight")) context.entities.rawget (p).collisionEvent.rawget ("bumpRight").acall ([e, objTemp]);
-                                        } 
-                                        if (context.entities.rawget (p).onKey.Heading == "left") {
-                                            context.entities.rawget (p).bumpHeading = "left";
-                                            p.Pos.X = obj.x + obj.width;    
-                                        
-                                            if (context.entities.rawget (p).collisionEvent.rawin ("bumpLeft")) context.entities.rawget (p).collisionEvent.rawget ("bumpLeft").acall ([e, objTemp]);                      
-                                        }
-
-                                        if (context.entities.rawget (p).onKey.Heading == "space") {
-                                            p.Pos.Y = obj.y + obj.height;
-  
-                                            if (context.entities.rawget (p).collisionEvent.rawin ("bumpHead")) context.entities.rawget (p).collisionEvent.rawget ("bumpHead").acall ([e, objTemp]);
-                                        }
-                                    }
+                                    if (context.entities.rawget (p).collisionEvent.rawin ("bumpHead")) context.entities.rawget (p).collisionEvent.rawget ("bumpHead").acall ([e, objTemp]);
+                                    
+                                }
+ 
+                                if (r2.y > r1.y) {
+                                    p.Pos.Y = r2.y - r1.h;
+                   
+                                    context.entities.rawget (p).IsGrounded = true; 
+                                    context.entities.rawget (p).IsFalling = false;
+                                    if (context.entities.rawget (p).collisionEvent.rawin ("bumpFoot")) context.entities.rawget (p).collisionEvent.rawget ("bumpFoot").acall ([e, objTemp]); 
                                 }
                                 else {
-                                    if (!context.entities.rawget (p).IsGrounded) {
-                                        if (context.entities.rawget (p).collisionEvent.rawin ("bumpFoot") && context.entities.rawget (p).player) context.entities.rawget (p).collisionEvent.rawget ("bumpFoot").acall ([e, objTemp]);
-                                        p.Pos.Y = obj.y - person.height; 
+                                    if (context.entities.rawget (p).onKey.Heading == "right") {
+                                        context.entities.rawget (p).bumpHeading = "right";
+                                        p.Pos.X = r2.x - r2.w; 
+                                        
+                                        if (context.entities.rawget (p).collisionEvent.rawin ("bumpRight")) context.entities.rawget (p).collisionEvent.rawget ("bumpRight").acall ([e, objTemp]);
+                                        if (context.entities.rawget (p).collisionEvent.rawin ("sides")) context.entities.rawget (p).collisionEvent.rawget ("sides").acall ([e, objTemp]);  
+                                    } 
+                                    else if (context.entities.rawget (p).onKey.Heading == "left") {
+                                        context.entities.rawget (p).bumpHeading = "left";
+                                        p.Pos.X = r2.x + r2.w;    
 
-                                        context.entities.rawget (p).IsJumping = false;
-                                        context.entities.rawget (p).IsGrounded = true;
-
-                                        context.entities.rawget (p).IsFalling = false;
+                                        if (context.entities.rawget (p).collisionEvent.rawin ("bumpLeft")) context.entities.rawget (p).collisionEvent.rawget ("bumpLeft").acall ([e, objTemp]);     
+                                        if (context.entities.rawget (p).collisionEvent.rawin ("sides")) context.entities.rawget (p).collisionEvent.rawget ("sides").acall ([e, objTemp]);                  
                                     }
+                                    context.entities.rawget (p).onKey.Heading = null; 
                                 }
                             }
-                        } 
+                        }
                     }
                 }, 1, 0, p, this);   
-            }
-        } 
+            } 
+        }  
     }    
-
+ 
     getTag = function (tag) {
         local list = [];
         foreach (e, Items in this.entities) {
             if (Items.alias == tag) list.push (this.entities.rawget (e));
-        }
-        return list;
+        } 
+        return list; 
     }
 
     getDistance = function (x1, y1, x2, y2) {
         local x = x2 - x1, y = y2 - y1;
         return sqrt(pow (x, 2) + pow (y, 2));
+    }
+ 
+    // draw Events
+    drawLine = function (data) {
+        local canvas = UI.Canvas ("liner"); 
+        if (!canvas) {
+            ::UI.Canvas ({
+                id = "liner"
+                Size = VectorScreen (20,20)
+                Colour = Colour (0,0,0)
+            });
+        }
+        else {
+            if (data && GUI.GetMousePos()) {
+                canvas.Size = data.Size;
+            }
+            else {
+                if (GUI.GetMousePos()) canvas.Pos = GUI.GetMousePos();
+            }
+        }
+    }
+
+    // getPos by frames
+    getPos = function (height, width) {
+        return this.frames [height] [width];
+    }
+
+    // render event
+    render = function (callback) {
+        Timer.Create (::UI, function (context) {
+            callback.acall ([context]);
+        }, 1, 0, this);
     }
 
     // attaching new props to entities
@@ -378,11 +412,18 @@ class kaboom extends Component  {
         }, null, false); 
 
         GUISprite.rawnewmember("move2d", function(speed) {
-            if (context.entities.rawin (this)) {
+            if (context.entities.rawin (this) && context.canvas) {
                 context.entities.rawget (this).onKey.Heading = (speed.tostring ().slice (0,1) == "-" ? "left" : "right");
  
-                if (this.Pos.X <= 0) this.Pos.X = 0;
-                if (this.Pos.X >= context.canvas.Size.X - this.Size.X) this.Pos.X = context.canvas.Size.X - this.Size.X;
+                if (this.Pos.X <= 0) {
+                    this.Pos.X = 0;
+                    context.entities.rawget (this).bumpHeading = "hitLeftEnd";
+                }
+                
+                if (this.Pos.X >= context.canvas.Size.X - this.Size.X) {
+                    this.Pos.X = context.canvas.Size.X - this.Size.X;
+                    context.entities.rawget (this).bumpHeading = "hitRightEnd";
+                }
                 
                 this.Pos.X += speed;
                 context.entities.rawget (this).IsMoving = true;
@@ -390,7 +431,7 @@ class kaboom extends Component  {
         }, null, false); 
 
         GUISprite.rawnewmember("action", function(callback) {
-            if (context.entities.rawin (this)) { 
+            if (context.entities.rawin (this) && context.canvas) { 
                 if (context.entities.rawget (this).actionTimer==null){
                     context.entities.rawget (this).actionTimer = Timer.Create (::UI, function  (p) {  
                         callback.acall ([{
@@ -408,21 +449,21 @@ class kaboom extends Component  {
                             context.entities.rawget (p).onKey.Event = null;
                         }
                         if (context.entities.rawget (p).onKey.Event == null) context.entities.rawget (p).IsMoving = false; 
-                        
                     }, 1, 0, this);  
                 }
             } 
         }, null, false);  
         
         GUISprite.rawnewmember("Jump", function(speed) {
-            if (context.entities.rawin (this)) {
+            if (context.entities.rawin (this) && context.canvas) {
                 if (context.entities.rawget (this).IsGrounded) {
                     this.Pos.Y -= speed;    
                     
                     context.entities.rawget (this).IsJumping = true; // Entity is jumping
-                    context.entities.rawget (this).IsGrounded = false; // Entity is on ground 
+                    context.entities.rawget (this).IsGrounded = false; // Entity is on ground  
                 }
                 context.entities.rawget (this).IsFalling = true;
+                context.entities.rawget (this).IsJumping = false;
             }
         }, null, false); 
         
@@ -453,6 +494,10 @@ class kaboom extends Component  {
                     getIsDestroyedStatus = function () {return context.entities.rawget (p).IsDetroyed;}
                     getIsFallingStatus = function () {return context.entities.rawget (p).IsFalling;}
                     getIsGroundedStatus = function () {return context.entities.rawget (p).IsGrounded;}
+
+                    rotate = function (e = 0) { 
+                        return p.Rotation = e 
+                    }
                 } 
             }
         }, null, false);          
@@ -462,7 +507,7 @@ class kaboom extends Component  {
                 this.Size.X += 0.8 * scaleTo; 
                 this.Size.Y += 0.8 * scaleTo;
 
-                context.entities.rawget (this).Scale = this.Size;
+                context.entities.rawget (this).Scale = 0.8 * scaleTo;
             }
         }, null, false); 
 
