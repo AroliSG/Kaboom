@@ -5,7 +5,7 @@ kaboom.nut based on kaboom.js. Its a vc-mp library that helps you to create any 
   - Pre-requisite: https://github.com/newk5/decui
  ```js
     dofile("decui/decui.nut"); 
-    dofile("kaboom/kaboom.nut"); 
+    dofile("kaboom/Kab.nut"); 
     
     local Kaboom = Kaboom ({
         id = "myfirst2dgame"
