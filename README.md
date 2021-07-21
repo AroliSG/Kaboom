@@ -9,7 +9,7 @@ kaboom.nut based on kaboom.js. Its a vc-mp library that helps you to create any 
     
     local Kaboom = Kaboom ({
         id = "myfirst2dgame"
-        loadRoot = "kaboom/blocks/"
+        loadRoot = "kaboom/"
 
         // debug = true  // debug mode
         // plugins = {} // trigger functions to kabooom to use later on with your game.
