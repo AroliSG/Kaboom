@@ -9,20 +9,25 @@ kaboom.nut based on kaboom.js. Its a vc-mp library that helps you to create any 
     
     local Kaboom = Kaboom ({
         id = "myfirst2dgame"
-        Size = VectorScreen (3000,500)
         loadRoot = "kaboom/blocks/"
-        gravityGame = true // activate a gravity game
-        gravity = 10 // set the gravity
-        
-        // fullscreen = true // fullscreen
-        // origin = "center" // alignment
-        // bgcolor = [0,0,0] // background colour
+
         // debug = true  // debug mode
         // plugins = {} // trigger functions to kabooom to use later on with your game.
         // Key = {Id = "50", name = "p"} // add new keys
     });
     
     Kaboom.scene ("game", function () {
+        config ({
+            gravityGame = true // activate gravity for a scene
+            gravity = 10 // set the gravity
+
+            // fullscreen = true // fullscreen
+            // origin = "center" // alignment
+            // bgcolor = [0,0,0] // background colour
+            // backgroundImage = "Id"
+            // mouse = boolean
+            // Size = VectorScreen (700,800)
+        });
     });
     
     Kaboom.start ("game");
