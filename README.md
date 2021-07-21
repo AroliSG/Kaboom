@@ -41,3 +41,5 @@ kaboom.nut based on kaboom.js. Its a vc-mp library that helps you to create any 
 
 ## Mario game
 ![mario (1)](https://user-images.githubusercontent.com/58828449/124419662-ee85a400-dd2b-11eb-859e-17a0fc33e47b.gif)
+
+credits to DMWarrior for the spritesheet function.
