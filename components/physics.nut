@@ -11,6 +11,8 @@ class Physics {
     preTimer    = null;
     bumpHeading = null;
     Heading     = null;
+    Ignore      = null;
+    tableIgnore = null;
 
     collisionEvent  = null;
     context         = null;
@@ -24,8 +26,9 @@ class Physics {
         this.Player     = data.Player;
         this.Solid      = data.Solid;
         this.Gravity    = data.Gravity;
+        this.Ignore     = data.Ignore;
         this.store      = data.store;
-        
+ 
             // booleans
         this.Falling        = false;
         this.Grounding      = false;
@@ -38,12 +41,13 @@ class Physics {
             Event   = null
         }
         this.collisionEvent = {};
+        this.tableIgnore    = {};
         
         this.JumpRate   = 20;
     }
 
     entityFrame = function () {
-        local FallingIndex = 0, JumpRate = 0, gravityTop = false;
+        local FallingIndex = 0, JumpRate = 0, gravityTop = false, menu = this;
         this.preTimer = function (p, game, context) { 
             if (game.gravityGame && context.Jumping && context.Gravity) {
                 // Jumping and Gravity methods.
@@ -109,18 +113,22 @@ class Physics {
 
                     // get distance
                     local distance = game.getDistance (p.Pos.X, p.Pos.Y, e.Pos.X, e.Pos.Y);
-                    if (distance < 50 && !p.hidden && !e.hidden && obj.physics.Solid && context.Solid) {
-
+                   /* if (distance < 50 && !p.hidden && !e.hidden && obj.physics.Solid && context.Solid) {
                             // collisions callback
                         if (context.collisionEvent.rawin (obj.physics.Alias)) context.collisionEvent.rawget (obj.physics.Alias).acall ([groupTemp]); 
                         if (context.collisionEvent.rawin ("bumpBody")) context.collisionEvent.rawget ("bumpBody").acall ([groupTemp]);  
-                    }
+                    } */
                     
-                        // verifying that class Alias is not equal of Items alias.
-                    if (context.Alias != obj.physics.Alias) {
+                        // verifying that class Alias is not equal of Items alias. 
+                    if (menu.getAlias (context, obj.physics)) {
                         local r1 = { x = p.Pos.X, y = p.Pos.Y, w = p.Size.X, h = p.Size.Y }, r2 = { x = e.Pos.X, y = e.Pos.Y, w = e.Size.X, h = e.Size.Y };
                         if (!(r1.x>r2.x+r2.w || r1.x+r1.w<r2.x || r1.y>r2.y+r2.h || r1.y+r1.h<r2.y) && context.Solid && !e.hidden) {
-                             if (context.onKey.Heading == "right" && r1.y >= r2.y && context.Solid && obj.physics.Solid) {                      
+                            if (context.collisionEvent.rawin (obj.physics.Alias)) context.collisionEvent.rawget (obj.physics.Alias).acall ([groupTemp]); 
+                            if (context.collisionEvent.rawin ("bumpBody")) context.collisionEvent.rawget ("bumpBody").acall ([groupTemp]);   
+                            
+                            local middleof = r1.y > r2.y || r1.y < r2.y;
+                           if (context.Alias == null)  Console.Print (context.Moving)
+                            if (context.onKey.Heading == "right" && middleof && context.Solid && obj.physics.Solid) {                      
                                 // difining space between obj and entity. - assigning bumpHeading
                                 p.Pos.X = p.Pos.X - 5;
                                 context.bumpHeading = "right"; // bump heading
@@ -130,7 +138,7 @@ class Physics {
                                 if (context.collisionEvent.rawin ("bumpSides")) context.collisionEvent.rawget ("bumpSides").acall ([groupTemp]);
                             }
                                 //  left collision                         
-                            if (context.onKey.Heading == "left" && r1.y >= r2.y && context.Solid && obj.physics.Solid) {
+                            if (context.onKey.Heading == "left" && middleof && context.Solid && obj.physics.Solid) {
                                 // difining space between obj and entity. - assigning bumpHeading
                                 p.Pos.X = p.Pos.X + 5;
                                 context.bumpHeading = "left";
@@ -166,7 +174,27 @@ class Physics {
                             }
                                 // without gravity game
                             else {
-                                
+                                local middleof = r1.x > r2.x || r1.x < r2.x;
+                                if (context.onKey.Heading == "up" && middleof && r1.y >= r2.y && context.Solid && obj.physics.Solid) {  
+                                                       
+                                    // difining space between obj and entity. - assigning bumpHeading
+                                    p.Pos.Y = p.Pos.Y + 5; 
+                                    context.bumpHeading = "up"; // bump heading
+                                    
+                                    // calling callbacks.
+                                    if (context.collisionEvent.rawin ("bumpTop")) context.collisionEvent.rawget ("bumpTop").acall ([groupTemp]);  
+                                    if (context.collisionEvent.rawin ("bumpSides")) context.collisionEvent.rawget ("bumpSides").acall ([groupTemp]);
+                                }
+                                    //  left collision                         
+                                if (context.onKey.Heading == "down" && r1.y <= r2.y && middleof &&context.Solid && obj.physics.Solid) {
+                                    // difining space between obj and entity. - assigning bumpHeading
+                                    p.Pos.Y = p.Pos.Y - 5; 
+                                    context.bumpHeading = "down";
+  
+                                    // calling callbacks.
+                                    if (context.collisionEvent.rawin ("bumpBottom")) context.collisionEvent.rawget ("bumpBottom").acall ([groupTemp]);  
+                                    if (context.collisionEvent.rawin ("bumpSides")) context.collisionEvent.rawget ("bumpSides").acall ([groupTemp]);
+                                } 
                             }
                         }
                     }
@@ -175,5 +203,17 @@ class Physics {
         }
     }
 
-    destroy = function () { Timer.Destroy (this.preTimer); }
+    getAlias = function (p, obj) {
+        if (p.Ignore && p.Ignore.len () == this.tableIgnore.len ()) {
+           if (this.tableIgnore.rawin (obj.Alias)) return false;
+        }
+        else {
+            if (p.Ignore) {
+                foreach (elements in p.Ignore) this.tableIgnore.rawset (elements, true);
+            }
+        }
+        if (p.Alias == null) return true;
+
+        if (p.Alias != obj.Alias) return true;
+    }
 }
