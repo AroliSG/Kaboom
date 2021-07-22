@@ -9,35 +9,25 @@ class map {
         this.store.rawset (name, data);
     }
 
-    get = function (entity) {
-        return this.store.rawget (entity);
+    get = function (key) {
+        if (this.store.rawin (key)) return this.store.rawget (key);
+        return null;
     }
 
     has = function (name) {
         return this.store.rawin (name);
     }
  
-    remove = function (entity) {
-        /*
-            local data = {};
-            foreach (e, Items in this.store) {
-                if (e == entity) continue;
-                else data.rawset (e, Items);
-            }
-            
-                // assigning new data.
-            this.store = data;
-        */
-        
-        this.store.rawdelete (entity)
+    remove = function (key) {
+        this.store.rawdelete (key)
+    }
+
+    clear = function () {
+        this.store.clear ();
     }
 
     size = function () {
         return this.store.len ();
-    }
-
-    filter = function () {
-        return this.store
     }
 
     forEach = function (callback) {
