@@ -442,33 +442,19 @@ class Kab {
             else return 1;
         }
         
-        local callback = null, alias = null, depositIt = {}; 
+        local callback = null, alias = null; 
         if (vargv.len () == 2) {
             callback    = vargv [1];
             alias       = vargv [0];
         }
         else callback = vargv [0];
-        
-        // editing and entering data to alias in format of rawing.
-        if (typeof alias == "string") {
-            depositIt.rawset (alias, true);
-
-            // assigning new data to alias.
-            alias = depositIt;
-        }
-
-        // editing data of array and converting it into a table.
-        if (typeof alias == "array") {
-            // looping elements into the 'depositIt'.
-            foreach (getIt in alias) depositIt.rawset (getIt, true);
-
-            // assigning new data to alias.
-            alias = depositIt; 
-        }
 
         this.store.entities.forEach (function (e, obj) {
+            // if string.
+            if (alias == obj.physics.Alias) callback (e);
+
             // looping table results
-            if (typeof alias == "table" && alias.rawin (obj.physics.Alias)) callback (e);
+            if (typeof alias == "array" && alias.find (obj.physics.Alias) != null) callback (e);
             
             // looping all alias.
             if (alias == null) callback (e); 
