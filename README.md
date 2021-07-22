@@ -40,7 +40,12 @@ kaboom.nut based on kaboom.js. Its a vc-mp library that helps you to create any 
 ![platform](https://user-images.githubusercontent.com/58828449/124415524-086eb900-dd23-11eb-9280-7f1c24797bf9.gif)
 
 ## Mario game
+old
 ![mario (1)](https://user-images.githubusercontent.com/58828449/124419662-ee85a400-dd2b-11eb-859e-17a0fc33e47b.gif)
+
+new
+![ezgif com-gif-maker](https://user-images.githubusercontent.com/58828449/126586752-59b1caaf-52ae-406d-892c-73259f469c2b.gif)
+
 
 ## Pacman game
 ![pacman](https://user-images.githubusercontent.com/58828449/126578375-c8a62081-0722-4596-8fc3-ea580d07f0cc.gif)
