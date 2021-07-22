@@ -341,7 +341,7 @@ class Kab {
         else {
             local getId = function () {
                 if (obj.rawin ("uniqueId")) return obj.uniqueId;
-                else return obj.uniqueId;
+                else return obj.spriteId;
             }
 
             e = ::UI.Sprite ({
@@ -407,8 +407,14 @@ class Kab {
 
     // distance
     getDistance = function (x1, y1, x2, y2) {
-        local x = x2 - x1, y = y2 - y1;
-        return sqrt(pow (x, 2) + pow (y, 2));
+            local dist = sqrt(((x2 - x1)*(x2 - x1)) + ((y2 - y1)*(y2 - y1)));
+            return {
+                radius = function (rad) {
+                    return dist < rad;
+                }
+
+                dist = dist
+            };
     }     
 
     // cam shake
@@ -745,7 +751,7 @@ class Kab {
             e.rawnewmember ("props", function() {
                 local parent = context.getParent (), p = this;
                 return {
-                    IsOutWorld = function () {
+                    getIsOutOfWorld = function () {
                         if (context.store.entities.has (p)) {
                                 // horizontally 
                             local boundaries = false;
@@ -759,20 +765,21 @@ class Kab {
                             return boundaries;
                         }
                     }          
-
+                        // receiving  data
                     getBumpHeading  = function () {if (context.store.entities.has (p)) return context.store.entities.get (p).physics.bumpHeading;}
                     getHeading      = function () {if (context.store.entities.has (p)) return context.store.entities.get (p).physics.Heading;}
                     getDistance     = function (entity = null) {if (entity) return getDistance (this.Pos.X, this.Pos.Y, entity.Pos.X, entity.Pos.Y);}
 
-                    getIsScaledStatus   = function ()  {if (context.store.entities.has (p)) return context.store.entities.get (p).Scale;}
+                        // Booleans
+                    getIsScaledStatus   = function () {if (context.store.entities.has (p)) return context.store.entities.get (p).Scale;}
                     getIsJumpingStatus  = function () {if (context.store.entities.has (p)) return context.store.entities.get (p).physics.Jumping;}
                     getIsMovingStatus   = function () {if (context.store.entities.has (p)) return context.store.entities.get (p).physics.Moving;}
                     getIsFallingStatus  = function () {if (context.store.entities.has (p)) return context.store.entities.get (p).physics.Falling;}
                     getIsGroundedStatus = function () {if (context.store.entities.has (p)) return context.store.entities.get (p).physics.Grounding;}
                     getIsExists         = function () {return context.store.entities.has (p);}
                     
-                    // adding data
-                    spin    = function (e = 0) { return p.Rotation = e }
+                        // editing data
+                    spin    = function (spin = 0) { return p.Rotation = spin}
                     Scale   = function (x, y = null) {
                         if (context.store.entities.has (p)) {
                             p.Size.X *= x;
@@ -809,7 +816,6 @@ class Kab {
                                 if (context.store.entities.has (p) && context.store.entities.get (p).physics.onKey.Event == "up") context.store.entities.get (p).physics.onKey.Event = null;
                             }
                         }
-                      //  }, 1, 0, this);  
                     }
                 }  
             }, null, false);  
