@@ -217,7 +217,7 @@ Kaboom.scene ("1-1", function () {
             }    
         });   
         
-        if (entity.props ().IsOutWorld ()) Kaboom.go ("gameover");
+        if (entity.props ().getIsOutOfWorld ()) Kaboom.go ("gameover");
     });
 
     mario.collides ("bumpHead", function () {
