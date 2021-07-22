@@ -204,14 +204,7 @@ class Physics {
     }
 
     getAlias = function (p, obj) {
-        if (p.Ignore && p.Ignore.len () == this.tableIgnore.len ()) {
-           if (this.tableIgnore.rawin (obj.Alias)) return false;
-        }
-        else {
-            if (p.Ignore) {
-                foreach (elements in p.Ignore) this.tableIgnore.rawset (elements, true);
-            }
-        }
+        if (p.Ignore && p.Ignore.find (obj.Alias) != null) return false;
         if (p.Alias == null) return true;
 
         if (p.Alias != obj.Alias) return true;
