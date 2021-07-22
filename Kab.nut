@@ -14,19 +14,25 @@ class Kab {
         "32": "space"
     }
 
-    setWorldBorder  = null;
+    sceneBorder     = null;
     renderTimer     = null;
+    funcTimeout     = null;
 
     constructor(obj) {
         this.Id     = obj.id;
+        this.funcTimeout = {
+            callback    = null
+            gIndex      = 0
+            timeOut     = 0
+        }
+
         this.store  = {
             frames      = []
             entities    = map ()
             scenes      = map ()
-            draws       = map ()       
+            draws       = map ()     
         }
 
-        if (obj.rawin ("setWorldBorder")) this.setWorldBorder = obj.setWorldBorder;
         if (obj.rawin ( "debug" )) this.debug = obj.debug;
         if (obj.rawin ("addKey")) this.myKey [obj.addKey.keyId] <- obj.addKey.keyName;
 
@@ -44,6 +50,7 @@ class Kab {
             if (obj.mouse) GUI.SetMouseEnabled(true);
             else GUI.SetMouseEnabled(false);
         }
+        if (obj.rawin ("sceneBorder")) this.sceneBorder = obj.sceneBorder;
 
         if (obj.rawin ( "Size" )) {
             width = obj.Size.X; 
@@ -166,6 +173,12 @@ class Kab {
     go = function (segment) {
         // clearing timers.
         if (Timer.Exists (this.renderTimer)) Timer.Destroy (this.renderTimer);
+        
+        // clearing up the Timeout.
+        this.funcTimeout = {
+            callback    = null
+            gIndex      = 0
+        }
 
         // entering the stage provided.
         if (this.store.scenes.has ("start") && this.store.scenes.has (segment)) {
@@ -199,7 +212,7 @@ class Kab {
             local proportions = VectorScreen (parent.Size.X / horizontal.len (), parent.Size.Y / map.len ()), sheet;
             foreach (getId in horizontal) {
                 getId = getId.tochar ();
-                if (index != 0) empty += proportions.X;
+                if (index != 0) empty += proportions.X //- 0.2;
                 if (horizontal.len () == index) {
                     index = 0;
                     empty = 0;
@@ -209,12 +222,23 @@ class Kab {
                 this.store.frames [height-1].push (VectorScreen (proportions.X * index, ([height-1] == 0 ? 0 : proportions.Y) * (height-1)));
                 
                 if (obj.rawin (getId)) {  
-                    local e = ::UI.Sprite({ 
-                        id =  height + "|" + index
-                        file = this.loadRoot + obj [getId].spriteId + ".png"     
-                    });
-                    
-                    local alias = null, solid = false, gravity = false;
+                    local alias = null, solid = false, gravity = false, e, rgb = Colour (255,255,255);
+
+                    if (obj [getId].rawin ("Colour")) rgb = obj [getId].Colour;
+                    if (obj [getId].rawin ("square") && obj [getId].square) {
+                        e = UI.Canvas({
+                            id      = height + "|" + index
+                            Colour  = rgb
+                        })
+                    }
+                    else {
+                        e = ::UI.Sprite({ 
+                            id      =  height + "|" + index
+                            file    = this.loadRoot + obj [getId].spriteId + ".png"     
+                            Colour  = rgb
+                        });
+                    }
+
                     if (obj [getId].rawin ("alias")) alias = obj [getId].alias;
                     if (obj [getId].rawin ("solid")) solid = obj [getId].solid;
                     if (obj [getId].rawin ("gravity")) gravity = obj [getId].gravity;
@@ -239,6 +263,7 @@ class Kab {
                             Alias   = alias
                             Solid   = solid
                             Gravity = gravity
+                            Ignore  = null
                             Player  = false
 
                             store   = this.store.entities
@@ -246,9 +271,10 @@ class Kab {
                     });
                     if (gravity) this.store.entities.get (e).physics.entityFrame ();
 
-                    local prev = UI.Sprite (height + "|" + (index-1)); 
+                    local entity = UI.Sprite (height + "|" + (index-1));
+                    local prev =  entity ? entity : UI.Canvas (height + "|" + (index-1));
                     if (prev) e.Pos.X += prev.Size.X + prev.Pos.X;
-                    else  e.Pos.X = empty;
+                    else e.Pos.X = empty;
 
                     // positioning sprites vertically
                     e.Pos.Y = (parent.Size.Y / map.len()) * (height-1);
@@ -257,6 +283,12 @@ class Kab {
                     this.attachToParent (e);
 
                     e.Size = proportions;
+                    if (obj [getId].rawin ("Size")) { 
+                        local s = obj [getId].Size;
+                        e.Size = s;
+                        if (s.Y == 0) e.Size.Y = proportions.Y;
+                        if (s.X == 0) e.Size.X = proportions.X;
+                    }
                 } 
 
                 // horizontal frames.
@@ -273,7 +305,7 @@ class Kab {
         }
 
         local compatibily = "normal", parent = this.getParent (), e;
-        local alias = false, origin = null, solid = false, gravity = false, player = false, sheet = null;
+        local alias = false, origin = null, solid = false, gravity = false, player = false, sheet = null, Ignore = null;
  
         if (obj.rawin ("origin")) origin = obj.origin;
         if (obj.rawin ("draw")) {
@@ -307,8 +339,13 @@ class Kab {
             }
         }
         else {
+            local getId = function () {
+                if (obj.rawin ("uniqueId")) return obj.uniqueId;
+                else return obj.uniqueId;
+            }
+
             e = ::UI.Sprite ({
-                id =  obj.spriteId
+                id =  getId ()
                 file = this.loadRoot + obj.spriteId + ".png"     
                 align = origin
             }); 
@@ -323,8 +360,9 @@ class Kab {
         if (obj.rawin ("player")) player = obj.player;
         if (obj.rawin ("solid")) solid = obj.solid;
         if (obj.rawin ("gravity")) gravity = obj.gravity;
-        if (obj.rawin ("alias")) alias = obj.alias
-
+        if (obj.rawin ("alias")) alias = obj.alias;
+        if (obj.rawin ("Ignore")) Ignore = obj.Ignore;
+  
         // elements for sprite
         if (obj.rawin ("Pos") && compatibily == "normal") e.Pos = obj.Pos;
         if (obj.rawin ("Size") && compatibily == "normal") e.Size = obj.Size;
@@ -332,6 +370,7 @@ class Kab {
             e.RotationCentre = obj.centre;
             e.Rotation = obj.rotation;
         }
+        if (obj.rawin ("Colour")) e.Colour = obj.Colour;
 
         this.store.entities.set (e, {
                 // animations
@@ -339,6 +378,7 @@ class Kab {
             animFrames      = 0
             stopAnim        = false
             prevAnim        = null
+            collection      = map ()
             
                 // Nulls
             actionTimer = null
@@ -350,12 +390,13 @@ class Kab {
                 Player  = player
                 Solid   = solid
                 Gravity = gravity
+                Ignore  = Ignore
                 store   = this.store.entities
             })
         });
  
             // collision, solid, gravity etc.
-        if (gravity) this.store.entities.get (e).physics.entityFrame ();
+        this.store.entities.get (e).physics.entityFrame ();
 
             // adding new child to parent
         this.attachToParent (e);
@@ -438,7 +479,7 @@ class Kab {
     getParent = function () {
         return UI.Canvas (this.Id) ? UI.Canvas (this.Id) : UI.Sprite (this.Id);
     }
-    
+     
     // getPos by frames
     getPos = function (height, width) { 
         return this.store.frames [height] [width];
@@ -447,9 +488,27 @@ class Kab {
     // render event
     render = function (callback) {
         this.renderTimer = Timer.Create (::UI, function (context) {
+            if (context.funcTimeout.callback) {
+                if (context.funcTimeout.gIndex > context.funcTimeout.timeOut) {
+                    context.funcTimeout.callback ();
+
+                    context.funcTimeout.callback    = null;
+                    context.funcTimeout.gIndex      = 0;
+                    context.funcTimeout.timeOut     = 0;
+                }
+                context.funcTimeout.gIndex ++;
+            }
             callback.acall ([context]); 
         }, 1, 0, this); 
     }   
+
+    // timeout event
+    Timeout = function (callback, number) {
+        if (!this.funcTimeout.callback) {
+            this.funcTimeout.callback   = callback;
+            this.funcTimeout.timeOut    = number;
+        }
+    }
 
     // draw
     drawLabel = function (obj) {
@@ -562,6 +621,9 @@ class Kab {
         foreach (e in [GUISprite, GUICanvas]) {
             local context = this; 
 
+                // attach data
+            e.rawnewmember ("collect", function () { if (context.store.entities.has (this)) return context.store.entities.get (this).collection }, null, false);
+
                 // render
             e.rawnewmember ("render", function () {
                 if (context.store.entities.has (this)) {
@@ -585,6 +647,10 @@ class Kab {
                         // flip mode.
                         if (data && data.rawin ( "flip" ) && data.flip) obj.anims.flip = -1;
                         else obj.anims.flip = 1;
+
+                        if (data && data.rawin ( "rotate" ) && data.rotate == "up") obj.anims.rotateAround = 1;
+                        else if (data && data.rawin ( "rotate" ) && data.rotate == "down") obj.anims.rotateAround = -1;
+                        else obj.anims.rotateAround = null;
                         
                         // updating anim
                         if (obj.animFrames >= anim.len ()) obj.animFrames = 0;
@@ -650,8 +716,8 @@ class Kab {
                     } 
                     
                     // vertical
-                    if (y != 0 && context.gravityGame) {
-                        local direction = (y.tostring ().slice (0,1) == "-" ? "down" : "up");
+                    if (y != 0) {
+                        local direction = (y.tostring ().slice (0,1) == "-" ? "up" : "down");
 
                             // this is needed for collisions vertically 'no-gravity'.
                         player.onKey.Heading = direction;
@@ -666,25 +732,25 @@ class Kab {
                         // left end of canvas and world border
                     if (this.Pos.X <= 0) {
                         player.bumpHeading = "hitLeftEnd"; 
-                        if (context.setWorldBorder) this.Pos.X = 0;
+                        if (context.sceneBorder) this.Pos.X = 0;
                     }
 
                         // right end of canvas and world border
                     if (this.Pos.X >= parent.Size.X - this.Size.X) {
                         player.bumpHeading = "hitRightEnd";
-                        if (context.setWorldBorder) this.Pos.X = parent.Size.X - this.Size.X;
+                        if (context.sceneBorder) this.Pos.X = parent.Size.X - this.Size.X;
                     }
 
                         // top end of canvas and world border
                     if (this.Pos.Y <= 0) {
                         player.bumpHeading = "hitTopEnd";
-                        if (context.setWorldBorder) this.Pos.Y = 0;
+                        if (context.sceneBorder) this.Pos.Y = 0;
                     }
 
                         // bottom end of canvas and world border
                     if (this.Pos.Y >= parent.Size.Y - this.Size.Y) {
                         player.bumpHeading = "hitBottomEnd";
-                        if (context.setWorldBorder) this.Pos.Y = parent.Size.Y - this.Size.Y;
+                        if (context.sceneBorder) this.Pos.Y = parent.Size.Y - this.Size.Y;
                     }    
                 }
             }, null, false);  
@@ -740,7 +806,7 @@ class Kab {
                             if (context.store.entities.has (p)) { 
                                 callback.acall ([{
                                     entity      = p
-                                    context     = context
+                                    game        = context
                                     Key         = function (key, callback) {
                                         if (context.store.entities.has (p)) { 
                                             local keys = context.store.entities.get (p).physics.onKey;
@@ -769,7 +835,6 @@ class Kab {
                     if (context.store.entities.get (this).rawin ("actionTimer")) Timer.Destroy (context.store.entities.get (this).actionTimer);
                     
                         // destroying the entity
-                    context.store.entities.get (this).physics.destroy ();
                     context.store.entities.remove (this);
  
                     this.destroy ();
