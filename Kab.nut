@@ -13,7 +13,7 @@ class Kab {
         "37": "left"
         "32": "space"
     }
-
+//hola kk
     sceneBorder     = null;
     renderTimer     = null;
     funcTimeout     = null;
